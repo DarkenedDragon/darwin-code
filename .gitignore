@@ -1,0 +1,6 @@
+# gitignore file 
+# author: Eli Jelesko
+
+*.o
+a.out
+
