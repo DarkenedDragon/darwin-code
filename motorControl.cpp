@@ -23,7 +23,11 @@ bool ping(CM730 &cm730, unsigned int id, bool showOutput) {
 	if (showOutput) {
 		string message = result ? ColorOutput::colorize("[$bg{Connected}]") : ColorOutput::colorize("[$br{Disconnected}]");  // assigns connected if result is true
 		cout << left;
-		cout << setw(20) << jointNames[id] << setw(20) << id << setw(20) << message << endl;
+		if (id >= 0 && id <= NUM_MOTORS) {
+			cout << setw(20) << jointNames[id] << setw(20) << id << setw(20) << message << endl;
+		} else {
+			cout << setw(20) << jointNames[0] << setw(20) << id << setw(20) << message << endl;
+		}
 	}
 	return result;
 }
@@ -70,6 +74,34 @@ int main() {
 	cout << "Connecting to subcontroller..." << endl;
 	if (!cm730.Connect()) {
 		cout << "Could not connect to the subcontroller. Please wait and try again." << endl;
+		//return 0;
+
+		// debugging 
+		// Need to beable to check if the subcontroller has a new/bad ID
+		cout << endl << "DEBUG" << endl;
+		cout << "Please disconnect all motors, then press ENTER. If you don't wish to continue debugging, simply exit the program" << endl;
+		cin.get();
+		cout << "Attempting to locate subcontroller" << endl;
+		for (int i = 0; i <= 255; i++) {
+			if (cm730.WriteByte(i, CM730::P_DXL_POWER, 1, 0) == CM730::SUCCESS) {
+				cout << "Sucessfully powered on device at id " << i << endl;
+				cout << "Reassign this device to ID 200? (This is presumably the subcontroller) [y/n]" << endl;
+				string response;
+				cin >> response;
+				if (response == "y" || response == "Y" || response == "yes" || response == "YES") {
+					int result = cm730.WriteByte(i, MX28::P_ID, 200, 0); // id, address, value, error
+					if (result != 0) { // something went wrong..
+						cout << "Error writing to ID " << i << endl;
+					} else {
+						cout << "Successfully reassigned " << i << " to " << 200 << endl;
+						break;
+					}
+
+				}
+			}
+		}
+		
+		cout << "The program will now exit" << endl;
 		return 0;
 	}
 
@@ -79,6 +111,7 @@ int main() {
 
 		// determine which command has been entered
 		string command = input.at(0);
+
 		if (command == "ping" && input.size() == 2) { // checks that it is a ping with one parameter
 			if (input.at(1) == "all") { // all motors commanded
 				cout << left; // left justified
@@ -94,6 +127,64 @@ int main() {
 				cout << "Invalid Command" << endl;
 			}
 
+		} else if (command == "check" && input.size() == 1) {
+			cout << "Checking for connected motors" << endl;	
+			for (int i = 0; i < 255; i++) {
+				bool result = ping(cm730, i, false);
+				cout << left;
+				if (result) {
+					string message = result ? ColorOutput::colorize("[$bg{Connected}]") : ColorOutput::colorize("[$br{Disconnected}]");  // assigns connected if result is true
+
+					if (i >= 0 && i <= NUM_MOTORS) {
+						cout << setw(20) << jointNames[i] << setw(20) << i << setw(20) << message << endl;
+					} else if (i == 200) {
+						cout << setw(20) << "SUB-CONTROLLER" << setw(20) << i << setw(20) << message << endl;
+					} else if (i == 254) {
+						cout << setw(20) << "ID BROADCAST" << setw(20) << i << setw(20) << message << endl;
+					} else {
+						cout << setw(20) << "Unknown" << setw(20) << i << setw(20) << message << endl;
+					}
+				}
+			}
+		} else if (command == "assign" && input.size() == 3) {
+			// assign [CURRENT ID] [NEW ID]
+			if (isNum(input.at(1)) && isNum(input.at(2))) {
+				int currentID = stoi(input.at(1));
+				int newID = stoi(input.at(2));
+				bool currentUp = ping(cm730, currentID, false);
+				bool newUp = ping(cm730, newID, false);
+
+				// Check that it isn't the board's id
+				if (currentID == 200) {
+					cout << "Cannot reassign subcontroller ID" << endl;
+					continue;
+				} 
+				// Check that this can be a vaild ID
+				if (newID < 0 || newID > 252) {
+					cout << "Cannot assign to that ID. Please use an ID in the range 0 - 252." << endl;
+					continue;
+				}
+				// Check that the new id is available
+				if (newUp) {
+					cout << "New ID is already in use" << endl;
+					continue;
+				}
+				// Check that the current id is connected
+				if (currentUp) {
+					int result = cm730.WriteByte(currentID, MX28::P_ID, newID, 0); // id, address, value, error
+						if (result != 0) { // something went wrong..
+							cout << "Error writing to ID " << currentID << endl;
+						} else {
+							cout << "Successfully reassigned " << currentID << " to " << newID << endl;
+						}
+
+				} else {
+					cout << "ID is not connected" << endl;
+					continue;
+				}
+			} else {
+				cout << "ID's must be a positive number" << endl;
+			}
 		} else if (command == "help") {
 			// set spacing
 			unsigned int first = 20;
