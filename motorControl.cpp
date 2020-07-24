@@ -198,6 +198,8 @@ int main() {
 			cout << setw(first) << "pos" << setw(second) << "[ID] [GOAL_POSITION]" << setw(third) << "Commands the selected motor to move to GOAL_POSITION" << endl;
 			cout << setw(first) << "cpos" << setw(second) << "[ID]" << setw(third) << "Returns the current position of the selected motor" << endl;
 			cout << setw(first) << "mpos" << setw(second) << "[ID]" << setw(third) << "Frees the motor and continuously displays its current position." << endl;
+			cout << setw(first) << "check" << setw(second) << "None" << setw(third) << "Displays all connected ID's" << endl;
+			cout << setw(first) << "assign" << setw(second) << "[CURRENT ID] [NEW ID]" << setw(third) << "Reassigns the selected motor ID to the new ID" << endl;
 
 
 			cout << endl << endl << endl;
